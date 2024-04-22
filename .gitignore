@@ -1,0 +1,14 @@
+# R specific files
+*.Rdata
+*.Rproj
+*.Rhistory
+*.Rd
+*.rds
+
+# Python specific files
+__pycache__/
+*.pyc
+*.ipynb_checkpoints
+
+# Ignore files
+Extra/

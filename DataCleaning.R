@@ -1,0 +1,430 @@
+#Data cleaning
+
+library(dplyr)
+library(mice)
+
+par(mar = c(5, 5, 5, 1), mfrow = c(1, 2))
+
+casualty_data <- read.csv("./Data/dft-road-casualty-statistics-casualty-2019.csv",header = T)
+accident_Data <- read.csv("./Data/dft-road-casualty-statistics-accident-2019.csv",header = T)
+
+
+temp_accident <- accident_Data %>% filter(substr(local_authority_ons_district,1,1) == "E")
+temp_casualty <- casualty_data[casualty_data$accident_index %in% modified_accident_data$accident_index,]
+
+modified_accident_data <- accident_Data %>% filter(substr(local_authority_ons_district,1,1) == "E")
+modified_casualty_data <- casualty_data[casualty_data$accident_index %in% modified_accident_data$accident_index,]
+
+#*****REPLACE -1 AND UNKNOWN VALUE TO NA FOR DIFFERENT COLUMNS AS PER PREVIOUS ANALYSIS*****
+modified_casualty_data <- replace(modified_casualty_data, modified_casualty_data==-1,NA)
+modified_accident_data <- replace(modified_accident_data, modified_accident_data==-1,NA)
+
+
+sum(!complete.cases(modified_casualty_data))
+sum(complete.cases(modified_casualty_data))
+
+#EACH ROW HAS HOW MANY NA'S
+na_rows = rowSums(is.na(modified_casualty_data))
+which.max(na_rows) #INDEX OF MAX NA ROW
+modified_casualty_data[3746,]
+
+#calculating mode
+find_mode <- function(x) {
+  u <- unique(x)
+  tab <- tabulate(match(x, u))
+  u[tab == max(tab)]
+}
+
+check_hist <- function(x){
+  hist(x,labels = T, freq = T)
+}
+
+acceptable_ranges <- function(x){
+  q1 <- quantile(x, .25)
+  q3 <- quantile(x, .75)
+  IQR <- IQR(x)
+  
+  acceptable_range_less <- q1-1.5*IQR
+  acceptable_range_more <- q3+1.5*IQR
+  result <- list(a=acceptable_range_less,b=acceptable_range_more)
+  
+  return(result)
+}
+
+#*****CASUALTY FILE DATA CLEANING*****
+names(modified_casualty_data)
+
+
+#check before for the number of columns
+dim(modified_casualty_data%>%filter(pedestrian_road_maintenance_worker==2|sex_of_casualty==9|car_passenger==9|bus_or_coach_passenger==9|casualty_type==99))
+
+modified_casualty_data$pedestrian_road_maintenance_worker <- replace(modified_casualty_data$pedestrian_road_maintenance_worker, modified_casualty_data$pedestrian_road_maintenance_worker==2,NA)
+modified_casualty_data$sex_of_casualty <- replace(modified_casualty_data$sex_of_casualty, modified_casualty_data$sex_of_casualty==9,NA)
+modified_casualty_data$car_passenger <- replace(modified_casualty_data$car_passenger, modified_casualty_data$car_passenger==9,NA)
+modified_casualty_data$bus_or_coach_passenger <- replace(modified_casualty_data$bus_or_coach_passenger, modified_casualty_data$bus_or_coach_passenger==9,NA)
+modified_casualty_data$casualty_type <- replace(modified_casualty_data$casualty_type, modified_casualty_data$casualty_type==99,NA)
+
+modified_casualty_data$pedestrian_location <- replace(modified_casualty_data$pedestrian_location, modified_casualty_data$pedestrian_location==10,NA)
+modified_casualty_data$pedestrian_movement <- replace(modified_casualty_data$pedestrian_movement, modified_casualty_data$pedestrian_movement==9,NA)
+
+#check after replacing if the number of columns = 0
+dim(modified_casualty_data%>%filter(pedestrian_road_maintenance_worker==2|sex_of_casualty==9|car_passenger==9|bus_or_coach_passenger==9|casualty_type==99))
+
+
+#ALTERNATIVE METHOD - GETTING OUT OF MEMORY
+#var <- c('casualty_type','pedestrian_road_maintenance_worker','sex_of_casualty','car_passenger','bus_or_coach_passenger')
+#var <- c('sex_of_casualty','car_passenger','bus_or_coach_passenger')
+#modified_casualty_data[,var] <- lapply(modified_casualty_data[,var],function(x) replace(x, x %in% 9,NA))
+# var <- c('pedestrian_road_maintenance_worker')
+# modified_casualty_data[,var] <- lapply(modified_casualty_data[,var],function(x) replace(x, x == 2,NA))
+#var <- c('casualty_type')
+#modified_casualty_data[,var] <- lapply(modified_casualty_data[,var],function(x) replace(x, x %in% 99,NA))
+
+
+#
+# check_hist(modified_casualty_data$casualty_home_area_type)
+# less_than <- acceptable_ranges(modified_casualty_data$casualty_home_area_type)$a
+# more_than <- acceptable_ranges(modified_casualty_data$casualty_home_area_type)$b
+# less_than
+# more_than
+
+#pedestrian_location
+dim(modified_casualty_data %>% filter(is.na(pedestrian_location)))
+check_hist(modified_casualty_data$pedestrian_location)
+
+mode <- find_mode(modified_casualty_data$pedestrian_location)
+modified_casualty_data$pedestrian_location <- modified_casualty_data$pedestrian_location %>% replace(is.na(.),mode)
+
+#pedestrian_movement
+dim(modified_casualty_data %>% filter(is.na(pedestrian_movement)))
+check_hist(modified_casualty_data$pedestrian_movement)
+
+mode <- find_mode(modified_casualty_data$pedestrian_movement)
+modified_casualty_data$pedestrian_movement <- modified_casualty_data$pedestrian_movement %>% replace(is.na(.),mode)
+
+
+# casualty_home_area_type
+#Replace na values, Outliers cannot be removed
+mode <- find_mode(modified_casualty_data$casualty_home_area_type)
+modified_casualty_data$casualty_home_area_type <- modified_casualty_data$casualty_home_area_type %>% replace(is.na(.),mode)
+
+
+# casualty_reference
+#No NA values, No outlier check required
+dim(modified_casualty_data %>% filter(is.na(casualty_reference)))
+check_hist(modified_casualty_data$casualty_reference)
+
+# car_passenger
+dim(modified_casualty_data %>% filter(is.na(car_passenger)))
+mode <- find_mode(modified_casualty_data$car_passenger)
+modified_casualty_data$car_passenger <- modified_casualty_data$car_passenger %>% replace(is.na(.),mode)
+check_hist(modified_casualty_data$car_passenger)
+
+# pedestrian_movement
+#No NA values, No outlier check required
+dim(modified_casualty_data %>% filter(is.na(pedestrian_movement)))
+check_hist(modified_casualty_data$pedestrian_movement)
+
+# pedestrian_location
+dim(modified_casualty_data %>% filter(is.na(pedestrian_location)))
+mode <- find_mode(modified_casualty_data$pedestrian_location)
+modified_casualty_data$pedestrian_location <- modified_casualty_data$pedestrian_location %>% replace(is.na(.),mode)
+
+# age_band_of_casualty
+dim(modified_casualty_data %>% filter(is.na(age_band_of_casualty)))
+mode <- find_mode(modified_casualty_data$age_band_of_casualty)
+modified_casualty_data$age_band_of_casualty <- modified_casualty_data$age_band_of_casualty %>% replace(is.na(.),mode)
+check_hist(modified_casualty_data$age_band_of_casualty)
+
+# bus_or_coach_passenger
+
+check_hist(modified_casualty_data$bus_or_coach_passenger)
+dim(modified_casualty_data %>% filter(is.na(bus_or_coach_passenger)))
+mode <- find_mode(modified_casualty_data$bus_or_coach_passenger)
+modified_casualty_data$bus_or_coach_passenger <- modified_casualty_data$bus_or_coach_passenger %>% replace(is.na(.),mode)
+check_hist(modified_casualty_data$bus_or_coach_passenger)
+
+# pedestrian_road_maintenance_worker
+dim(modified_casualty_data %>% filter(is.na(pedestrian_road_maintenance_worker)))
+check_hist(modified_casualty_data$pedestrian_road_maintenance_worker)
+mode <- find_mode(modified_casualty_data$pedestrian_road_maintenance_worker)
+modified_casualty_data$pedestrian_road_maintenance_worker <- modified_casualty_data$pedestrian_road_maintenance_worker %>% replace(is.na(.),mode)
+check_hist(modified_casualty_data$pedestrian_road_maintenance_worker)
+
+
+# casualty_type
+dim(modified_casualty_data %>% filter(is.na(casualty_type)))
+check_hist(modified_casualty_data$casualty_type)
+mode <- find_mode(modified_casualty_data$casualty_type)
+modified_casualty_data$casualty_type <- modified_casualty_data$casualty_type %>% replace(is.na(.),mode)
+check_hist(modified_casualty_data$casualty_type)
+
+# vehicle_reference
+dim(modified_casualty_data %>% filter(is.na(vehicle_reference)))
+check_hist(modified_casualty_data$vehicle_reference)
+
+# sex_of_casualty
+dim(modified_casualty_data %>% filter(is.na(sex_of_casualty)))
+check_hist(casualty_data$sex_of_casualty)
+mode <- find_mode(modified_casualty_data$sex_of_casualty)
+modified_casualty_data$sex_of_casualty <- modified_casualty_data$sex_of_casualty %>% replace(is.na(.),mode)
+check_hist(modified_casualty_data$sex_of_casualty)
+
+#****WARNING****
+# age_of_casualty
+dim(modified_casualty_data %>% filter(is.na(age_of_casualty)))
+check_hist(temp_casualty$age_of_casualty)
+#Mean
+mean_age <- floor(mean(modified_casualty_data$age_of_casualty,na.rm = TRUE))
+#Outlier Range
+temp <- modified_casualty_data %>% filter(!is.na(age_of_casualty))
+lower_R <- acceptable_ranges(temp$age_of_casualty)$a
+higher_R <- acceptable_ranges(temp$age_of_casualty)$b
+
+modified_casualty_data$age_of_casualty <- modified_casualty_data$age_of_casualty %>% replace(is.na(.),mean_age)
+modified_casualty_data$age_of_casualty <- modified_casualty_data$age_of_casualty %>% replace(. >higher_R,mean_age)
+
+check_hist(modified_casualty_data$age_of_casualty)
+
+
+
+#****************HIGH WARNING***************************
+# casualty_imd_decile
+#HISTOGRAM CHANGES DRASTICALLY
+dim(modified_casualty_data %>% filter(is.na(casualty_imd_decile)))
+dim(temp_casualty %>% filter(casualty_imd_decile == -1))
+check_hist(temp_casualty$casualty_imd_decile)
+mode <- find_mode(modified_casualty_data$casualty_imd_decile)
+modified_casualty_data$casualty_imd_decile <- modified_casualty_data$casualty_imd_decile %>% replace(is.na(.),mode)
+check_hist(modified_casualty_data$casualty_imd_decile)
+
+# casualty_home_area_type
+dim(modified_casualty_data %>% filter(is.na(casualty_home_area_type)))
+check_hist(modified_casualty_data$casualty_home_area_type)
+
+
+#*************************************************************************************
+#*****ACCIDENT FILE DATA CLEANING*****
+names(accident_Data)
+
+dim(modified_accident_data %>% filter(location_easting_osgr=='NULL'))
+
+#Replace NULL VALUES
+modified_accident_data <- replace(modified_accident_data, modified_accident_data=="NULL",NA)
+#Alternate way
+#modified_accident_data <- modified_accident_data %>% replace(modified_accident_data == "NULL", NA)
+
+#check before for the number of columns
+dim(modified_accident_data%>%filter(junction_control==99|junction_control==9|speed_limit==99|junction_detail==99|road_type==9|pedestrian_crossing_human_control==9|pedestrian_crossing_physical_facilities==9|weather_conditions==9|special_conditions_at_site==9|carriageway_hazards==9))
+
+modified_accident_data$junction_control <- replace(modified_accident_data$junction_control,modified_accident_data$junction_control==99,NA)
+modified_accident_data$junction_control <- replace(modified_accident_data$junction_control,modified_accident_data$junction_control==9,NA)
+modified_accident_data$speed_limit <- replace(modified_accident_data$speed_limit,modified_accident_data$speed_limit==99,NA)
+modified_accident_data$junction_detail <- replace(modified_accident_data$junction_detail,modified_accident_data$junction_detail==99,NA)
+
+
+modified_accident_data$road_type <- replace(modified_accident_data$road_type, modified_accident_data$road_type==9,NA)
+modified_accident_data$pedestrian_crossing_human_control <- replace(modified_accident_data$pedestrian_crossing_human_control, modified_accident_data$pedestrian_crossing_human_control==9,NA)
+modified_accident_data$pedestrian_crossing_physical_facilities <- replace(modified_accident_data$pedestrian_crossing_physical_facilities, modified_accident_data$pedestrian_crossing_physical_facilities==9,NA)
+modified_accident_data$weather_conditions <- replace(modified_accident_data$weather_conditions, modified_accident_data$weather_conditions==9,NA)
+modified_accident_data$special_conditions_at_site <- replace(modified_accident_data$special_conditions_at_site, modified_accident_data$special_conditions_at_site==9,NA)
+modified_accident_data$carriageway_hazards <- replace(modified_accident_data$carriageway_hazards, modified_accident_data$carriageway_hazards==9,NA)
+
+
+
+#check after replacing if the number of columns = 0
+dim(modified_accident_data%>%filter(junction_control==99|junction_control==9|speed_limit==99|junction_detail==99|road_type==9|pedestrian_crossing_human_control==9|pedestrian_crossing_physical_facilities==9|weather_conditions==9|special_conditions_at_site==9|carriageway_hazards==9))
+
+#****************************************************************
+# number_of_casualties
+dim(temp_accident %>% filter(number_of_casualties == -1))
+check_hist(temp_accident$number_of_casualties)
+#Mean
+# mean_casualties <- mean(modified_accident_data$number_of_casualties)
+# #Outlier Range
+# lower_R <- acceptable_ranges(modified_accident_data$number_of_casualties)$a
+# higher_R <- acceptable_ranges(modified_accident_data$number_of_casualties)$b
+
+#modified_accident_data$number_of_casualties <- modified_accident_data$number_of_casualties %>% replace(number_of_casualties >= higher_R,mean_casualties) %>% replace(number_of_casualties <= lower_R,mean_casualties)
+
+check_hist(modified_accident_data$number_of_casualties)
+
+#****************************************************************
+# number_of_vehicles
+dim(modified_accident_data %>% filter(is.na(number_of_vehicles)))
+check_hist(temp_accident$number_of_vehicles)
+#Mean
+# mean_vehicles <- mean(modified_accident_data$number_of_vehicles)
+# #Outlier Range
+# lower_R <- acceptable_ranges(modified_accident_data$number_of_vehicles)$a
+# higher_R <- acceptable_ranges(modified_accident_data$number_of_vehicles)$b
+
+#modified_accident_data$number_of_vehicles <- modified_accident_data$number_of_vehicles %>% replace(number_of_vehicles >= higher_R,mean_casualties) %>% replace(number_of_vehicles <= lower_R,mean_casualties)
+
+check_hist(modified_accident_data$number_of_vehicles)
+
+# junction_control
+dim(modified_accident_data %>% filter(is.na(junction_control)))
+check_hist(accident_Data$junction_control)
+
+mode<-find_mode(modified_accident_data$junction_control)
+median <- median(modified_accident_data$junction_control,na.rm = T)
+modified_accident_data$junction_control <- modified_accident_data$junction_control %>% replace(is.na(.),median)
+check_hist(modified_accident_data$junction_control)
+
+#**********HIGH WARNING*************
+# second_road_class
+dim(modified_accident_data %>% filter(is.na(second_road_class)))
+check_hist(temp_accident$second_road_class)
+
+median_src<-median(modified_accident_data$second_road_class,na.rm = T)
+modified_accident_data$second_road_class <- modified_accident_data$second_road_class %>% replace(is.na(.),median_src)
+check_hist(modified_accident_data$second_road_class)
+
+#**********HIGH WARNING*************
+# second_road_number
+dim(modified_accident_data %>% filter(is.na(second_road_number)))
+
+dim(accident_Data %>% filter(second_road_number == -1|second_road_number == 0))
+
+check_hist(accident_Data$second_road_number)
+
+mode <- find_mode(modified_accident_data$second_road_number)
+modified_accident_data$second_road_number <- modified_accident_data$second_road_number %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$second_road_number)
+
+# trunk_road_flag
+# dim(accident_Data %>% filter(trunk_road_flag == -1))
+# check_hist(temp_accident$trunk_road_flag)
+# 
+# mode <- find_mode(modified_accident_data$trunk_road_flag)
+# modified_accident_data$trunk_road_flag <- modified_accident_data$trunk_road_flag %>% replace(is.na(.),mode)
+# check_hist(modified_accident_data$trunk_road_flag)
+
+# road_surface_conditions
+dim(modified_accident_data %>% filter(is.na(road_surface_conditions)))
+check_hist(accident_Data$road_surface_conditions)
+
+mode <- find_mode(modified_accident_data$road_surface_conditions)
+modified_accident_data$road_surface_conditions <- modified_accident_data$road_surface_conditions %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$road_surface_conditions)
+
+# special_conditions_at_site
+dim(modified_accident_data %>% filter(is.na(special_conditions_at_site)))
+check_hist(accident_Data$special_conditions_at_site)
+
+mode <- find_mode(modified_accident_data$special_conditions_at_site)
+modified_accident_data$special_conditions_at_site <- modified_accident_data$special_conditions_at_site %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$special_conditions_at_site)
+
+# carriageway_hazards
+dim(modified_accident_data %>% filter(is.na(carriageway_hazards)))
+check_hist(accident_Data$carriageway_hazards)
+
+mode <- find_mode(modified_accident_data$carriageway_hazards)
+modified_accident_data$carriageway_hazards <- modified_accident_data$carriageway_hazards %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$carriageway_hazards)
+
+# pedestrian_crossing_human_control
+dim(modified_accident_data %>% filter(is.na(carriageway_hazards)))
+check_hist(accident_Data$carriageway_hazards)
+
+mode <- find_mode(modified_accident_data$carriageway_hazards)
+modified_accident_data$carriageway_hazards <- modified_accident_data$carriageway_hazards %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$carriageway_hazards)
+
+# pedestrian_crossing_physical_facilities
+dim(modified_accident_data %>% filter(is.na(pedestrian_crossing_physical_facilities)))
+check_hist(accident_Data$pedestrian_crossing_physical_facilities)
+
+mode <- find_mode(modified_accident_data$pedestrian_crossing_physical_facilities)
+modified_accident_data$pedestrian_crossing_physical_facilities <- modified_accident_data$pedestrian_crossing_physical_facilities %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$pedestrian_crossing_physical_facilities)
+
+# speed_limit
+dim(modified_accident_data %>% filter(is.na(speed_limit)))
+check_hist(accident_Data$speed_limit)
+
+mode <- find_mode(modified_accident_data$speed_limit)
+modified_accident_data$speed_limit <- modified_accident_data$speed_limit %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$speed_limit)
+
+# junction_detail
+dim(modified_accident_data %>% filter(is.na(junction_detail)))
+check_hist(accident_Data$junction_detail)
+
+mode <- find_mode(modified_accident_data$junction_detail)
+modified_accident_data$junction_detail <- modified_accident_data$junction_detail %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$junction_detail)
+
+# light_conditions
+dim(modified_accident_data %>% filter(is.na(light_conditions)))
+check_hist(accident_Data$light_conditions)
+
+mode <- find_mode(modified_accident_data$light_conditions)
+modified_accident_data$light_conditions <- modified_accident_data$light_conditions %>% replace(is.na(.),mode)
+check_hist(modified_accident_data$light_conditions)
+
+#FIND METHOD
+#location_easting_osgr
+dim(modified_accident_data %>% filter(is.na(location_easting_osgr)))
+#as.numeric(as.character(modified_accident_data$location_easting_osgr))
+median <- median(as.numeric(as.character(modified_accident_data$location_easting_osgr)), na.rm=T)
+modified_accident_data$location_easting_osgr <- modified_accident_data$location_easting_osgr %>% replace(is.na(.),median)
+
+#location_northing_osgr
+dim(modified_accident_data %>% filter(is.na(location_northing_osgr)))
+median <- median(as.numeric(as.character(modified_accident_data$location_northing_osgr)), na.rm=T)
+modified_accident_data$location_northing_osgr <- modified_accident_data$location_northing_osgr %>% replace(is.na(.),median)
+
+# longitude
+dim(modified_accident_data %>% filter(is.na(longitude)))
+median <- median(as.numeric(as.character(modified_accident_data$longitude)), na.rm=T)
+modified_accident_data$longitude <- modified_accident_data$longitude %>% replace(is.na(.),median)
+
+# latitude
+dim(modified_accident_data %>% filter(is.na(latitude)))
+median <- median(as.numeric(as.character(modified_accident_data$latitude)), na.rm=T)
+modified_accident_data$latitude <- modified_accident_data$latitude %>% replace(is.na(.),median)
+
+# local_authority_highway
+dim(modified_accident_data %>% filter(is.na(local_authority_highway)))
+
+mode <- find_mode(modified_accident_data$local_authority_highway)
+modified_accident_data$local_authority_highway <- modified_accident_data$local_authority_highway %>% replace(is.na(.),mode)
+
+# road_type
+dim(modified_accident_data %>% filter(is.na(road_type)))
+check_hist(temp_accident$road_type)
+
+mode <- find_mode(modified_accident_data$road_type)
+modified_accident_data$road_type <- modified_accident_data$road_type %>% replace(is.na(.),mode)
+
+check_hist(modified_accident_data$road_type)
+
+# pedestrian_crossing_human_control
+dim(modified_accident_data %>% filter(is.na(pedestrian_crossing_human_control)))
+check_hist(temp_accident$pedestrian_crossing_human_control)
+
+mode <- find_mode(modified_accident_data$pedestrian_crossing_human_control)
+modified_accident_data$pedestrian_crossing_human_control <- modified_accident_data$pedestrian_crossing_human_control %>% replace(is.na(.),mode)
+
+check_hist(modified_accident_data$pedestrian_crossing_human_control)
+
+# weather_conditions
+dim(modified_accident_data %>% filter(is.na(weather_conditions)))
+check_hist(temp_accident$weather_conditions)
+
+mode <- find_mode(modified_accident_data$weather_conditions)
+modified_accident_data$weather_conditions <- modified_accident_data$weather_conditions %>% replace(is.na(.),mode)
+
+check_hist(modified_accident_data$weather_conditions)
+
+# lsoa_of_accident_location
+dim(modified_accident_data %>% filter(is.na(lsoa_of_accident_location)))
+
+mode <- find_mode(modified_accident_data$lsoa_of_accident_location)
+modified_accident_data$lsoa_of_accident_location <- modified_accident_data$lsoa_of_accident_location %>% replace(is.na(.),mode)
+
+write.csv(modified_casualty_data,"./Data/casualty.csv", row.names = F)
+write.csv(modified_accident_data,"./Data/accident.csv", row.names = F)

@@ -1,0 +1,121 @@
+library(VIM)
+library(dlookr)
+library(dplyr)
+library(corrgram)
+library(corrplot)
+
+casualty_data <- read.csv("./Data/dft-road-casualty-statistics-casualty-2019.csv",header = T)
+accident_Data <- read.csv("./Data/dft-road-casualty-statistics-accident-2019.csv",header = T)
+
+dim(casualty_data)
+dim(accident_Data)
+
+head(casualty_data)
+head(accident_Data)
+
+diagnose(casualty_data)
+diagnose(accident_Data) %>% print(n = 36)
+
+
+diagnose_outlier(casualty_data)
+diagnose_outlier(accident_Data)
+
+corrgram(casualty_data)
+corrgram(accident_Data)
+
+diagnose_outlier(casualty_data) %>% filter(outliers_cnt > 0)
+diagnose_outlier(accident_Data)
+
+casualty_data %>% plot_outlier(age_of_casualty)
+casualty_data %>% select(find_outliers(.)) %>%  diagnose()
+
+?arrange()
+
+casualty_data %>% diagnose_paged_report(output_dir = "./Report", output_format = "pdf")
+dim(accident_Data %>% filter(substr(local_authority_ons_district,1,1) == "E" || substr(local_authority_highway,1,1) == "E"))
+dim(accident_Data %>% filter(substr(local_authority_highway,1,1) == NA))
+
+#%>% diagnose_paged_report(output_dir = "./output_dir", output_format = "pdf")
+?diagnose_paged_report
+
+?boxplot
+
+?substr
+
+
+casualty_data %>% filter(casualty_imd_decile == 'NaN' || casualty_imd_decile == 'null') 
+
+#################
+#Age of casualty Outlier analysis
+hist(casualty_data$age_of_casualty, labels = T)
+
+q1 <- quantile(casualty_data$age_of_casualty, .25)
+q3 <- quantile(casualty_data$age_of_casualty, .75)
+IQR <- IQR(casualty_data$age_of_casualty)
+
+acceptable_range_less <- q1-1.5*IQR
+acceptable_range_more <- q3+1.5*IQR
+
+dim(casualty_data %>% filter(age_of_casualty > 92))
+dim(casualty_data %>% filter(age_of_casualty == -1)) #approx 2% values are -1 or unknown
+
+mode(casualty_data$age_of_casualty)
+# Outliers are data with age_of_casualty > 92 as per above calculation, check correlation with other columns as well
+#-1 values can be removed/replaced with mean/median(numerical data) , ordinal data?
+
+############
+#sex_of_casualty Outlier analysis, 1-Male, 2-Female, 9-unknown(self reported), -1->missing\out_of_range
+hist(casualty_data$sex_of_casualty, labels = T)
+
+casualty_data %>% filter(sex_of_casualty > 2)
+# -1 -> values can be removed/replaced with mode(categorical data(nominal type))
+
+#############
+#vehicle_reference Outlier analysis, desc->unique value for each vehicle in a singular accident. 
+#Can be used to join a Casualty to a vehicle
+hist(casualty_data$vehicle_reference, labels = T)
+
+#categorical data, we can replace vehicle with category > 3 with mode, no -ve or missing value
+
+#############
+#casualty_type Outlier analysis, 30 categories see excel for details
+hist(casualty_data$casualty_type, labels = T)
+
+q1 <- quantile(casualty_data$casualty_type, .25)
+q3 <- quantile(casualty_data$casualty_type, .75)
+IQR <- IQR(casualty_data$casualty_type)
+
+acceptable_range_less <- q1-1.5*IQR
+acceptable_range_more <- q3+1.5*IQR
+
+dim(casualty_data %>% filter(casualty_type > 100))
+# for >100 fields were dropped in 1999, wrong data, categorical data -> can be replaced with mode or remove it
+#no -ve/missing value, no 99(unknown vehicle type) values
+
+############
+#pedestrian_road_maintenance_worker Outlier analysis, 
+#0-Not applicable,1-Yes,2-Not known,3-probable(applicable for only 2005 data),-1-> missing/out of range
+hist(casualty_data$pedestrian_road_maintenance_worker, labels = T)
+
+dim(casualty_data %>% filter(pedestrian_road_maintenance_worker == 2))
+# categorical data, 2(not known) values can be kept as one of the category or replace with mode,
+#-1 can be replaced by mode/remove
+
+##############
+#bus_or_coach_passenger, 1-4 categories,9->unknown(self reported), -1 -> missing/out of range
+hist(casualty_data$bus_or_coach_passenger, labels = T)
+
+dim(casualty_data %>% filter(bus_or_coach_passenger == 9))
+#categorical data, 9 value can be kept as 1 category or replace with mode, -1 cane be removed or replaced with mode
+
+
+hist(casualty_data$age_of_casualty, labels = T, freq = F)
+
+corrplot(casualty_data,method="color")
+?corrplot
+
+names(casualty_data) 
+names(accident_Data)
+
+
+accident_Data %>% gro
