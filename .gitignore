@@ -4,7 +4,7 @@
 *.Rhistory
 *.Rd
 *.rds
-*.Rproj.user
+*.user
 
 # Python specific files
 __pycache__/
@@ -14,4 +14,4 @@ __pycache__/
 
 # Ignore files
 Extra/
-DS_Report.pdf
+Report/DS_Report.pdf
