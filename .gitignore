@@ -4,6 +4,7 @@
 *.Rhistory
 *.Rd
 *.rds
+*.Rproj.user
 
 # Python specific files
 __pycache__/
